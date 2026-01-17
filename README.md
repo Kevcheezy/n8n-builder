@@ -43,12 +43,12 @@ Trigger → Script Generation → Image Generation → Audio → Video Assembly 
 
 | Category | Services |
 |----------|----------|
-| **Text/Script** | OpenAI, Google Gemini, Anthropic Claude |
-| **Images** | Flux (PiAPI), Pollinations.ai, DALL-E |
-| **Video** | Kling 2.6 (PiAPI), RunwayML, Veo 3.1 |
+| **Text/Script** | **Google Gemini (preferred)**, OpenAI, Anthropic Claude |
+| **Images** | **Nano Banana Pro (preferred)**, Flux (PiAPI), Pollinations.ai, DALL-E |
+| **Video** | **Veo 3.1 Fast (preferred)**, Kling 2.6 (PiAPI), RunwayML |
 | **Audio** | ElevenLabs, Resemble AI, OpenAI TTS |
 | **Assembly** | Creatomate, JSON2Video, CapCut API |
-| **Storage** | Google Drive, AWS S3, Cloudinary |
+| **Storage** | **Google Drive (preferred)**, AWS S3, Cloudinary |
 | **Publishing** | TikTok, YouTube, Instagram, LinkedIn |
 
 ## Best Practices

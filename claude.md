@@ -82,22 +82,22 @@ Read the skills in `skills/` before building workflows:
 ┌─────────────┐   ┌───────────────┐   ┌─────────────┐
 │   Trigger   │ → │ Script/Prompt │ → │   Images    │
 │  (Webhook/  │   │  Generation   │   │ Generation  │
-│   Manual)   │   │   (GPT/Gemini)│   │ (Flux/DALL-E)│
+│   Manual)   │   │ (Gemini)      │   │(Nano Banana)│
 └─────────────┘   └───────────────┘   └─────────────┘
                                               ↓
 ┌─────────────┐   ┌───────────────┐   ┌─────────────┐
-│   Publish   │ ← │    Video      │ ← │   Audio     │
-│ (TikTok/YT) │   │   Assembly    │   │ (ElevenLabs)│
+│   Storage   │ ← │    Video      │ ← │   Audio     │
+│(Google Drive│   │   Assembly    │   │ (ElevenLabs)│
 └─────────────┘   └───────────────┘   └─────────────┘
 ```
 
-### Common Integrations
-- **Text/Script**: OpenAI, Google Gemini, Anthropic Claude
-- **Images**: Flux (via PiAPI), Pollinations.ai, DALL-E, Nano Banana Pro
-- **Video Clips**: Kling 2.6 (via PiAPI), RunwayML, Veo 3.1
+### Preferred Integrations
+- **Text/Script**: **Google Gemini** (preferred), OpenAI, Anthropic Claude
+- **Images**: **Nano Banana Pro** (preferred), Flux (via PiAPI), Pollinations.ai, DALL-E
+- **Video Clips**: **Veo 3.1 Fast** (preferred), Kling 2.6 (via PiAPI), RunwayML
 - **Audio/Voice**: ElevenLabs, Resemble AI, OpenAI TTS
 - **Assembly**: Creatomate, JSON2Video, CapCut API
-- **Storage**: Google Drive, AWS S3, Cloudinary
+- **Storage**: **Google Drive** (preferred output), AWS S3, Cloudinary
 - **Publishing**: TikTok, YouTube, Instagram, LinkedIn
 
 ---

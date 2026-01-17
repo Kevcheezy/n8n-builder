@@ -36,18 +36,34 @@ Patterns for building AI video generation pipelines optimized for **sales conver
 
 ## Script Generation
 
-### OpenAI/GPT
-```json
-{
-  "type": "@n8n/n8n-nodes-langchain.openAi",
-  "parameters": {
-    "model": "gpt-4o",
-    "prompt": "Create a 60-second video script about {{$json.topic}}. Include:\n1. Hook (5 seconds)\n2. Main content (45 seconds)\n3. Call to action (10 seconds)\n\nOutput JSON: {segments: [{text, duration, imagePrompt}]}"
-  }
-}
+### Google Gemini (Preferred)
+
+Use Gemini as the primary script generation engine:
+
+```javascript
+// Code node: Call Google Gemini (PREFERRED)
+const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': $credentials.geminiApiKey
+  },
+  body: JSON.stringify({
+    contents: [{ 
+      parts: [{ 
+        text: `Create a 60-second video script about ${$json.topic}. Include:
+1. Hook (5 seconds)
+2. Main content (45 seconds)  
+3. Call to action (10 seconds)
+
+Output JSON: {segments: [{text, duration, imagePrompt}]}`
+      }] 
+    }]
+  })
+});
 ```
 
-### Gemini
+### OpenAI/GPT (Alternative)
 ```javascript
 // Code node: Call Gemini
 const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent', {
@@ -124,9 +140,9 @@ const avatarPrompt = `
 ```
 
 **Recommended Tools:**
-- **Nano Banana Pro**: Best for realistic human generation
+- **Nano Banana Pro** (PREFERRED): Best for realistic human generation
 - **Enhancor AI**: Post-upscaling to add realistic texture
-- **Flux**: Good alternative via PiAPI
+- **Flux**: Alternative via PiAPI
 
 ---
 
@@ -193,7 +209,30 @@ const movementPrompt = `
 `;
 ```
 
-### Kling 2.6 (Recommended for Talking Heads)
+### Veo 3.1 Fast (PREFERRED for Video Generation)
+
+Veo 3.1 Fast is the preferred video generation model for speed and quality:
+
+```javascript
+// HTTP Request node: Veo 3.1 Fast (PREFERRED)
+const response = await $http.request({
+  method: 'POST',
+  url: 'https://api.veo.google/v1/video/generate',
+  headers: { 
+    'Authorization': `Bearer ${$credentials.veoApiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: {
+    prompt: $json.videoPrompt,
+    model: 'veo-3.1-fast',
+    duration: 10,
+    aspect_ratio: '9:16',  // Vertical for social
+    output_format: 'mp4'
+  }
+});
+```
+
+### Kling 2.6 (Alternative for Talking Heads)
 ```json
 {
   "method": "POST",
@@ -207,7 +246,7 @@ const movementPrompt = `
 }
 ```
 
-### Veo3 Pattern
+### Veo Async Pattern (Alternative)
 ```javascript
 // Async generation with callback
 const response = await $http.request({
@@ -337,6 +376,42 @@ const statusUpdate = {
   status: 'completed',
   audio_url: $json.audioUrl,
   updated_at: new Date().toISOString()
+};
+```
+
+## Output Storage
+
+### Google Drive (PREFERRED)
+
+All generated videos should be saved directly to Google Drive:
+
+```json
+{
+  "type": "n8n-nodes-base.googleDrive",
+  "parameters": {
+    "operation": "upload",
+    "name": "={{$json.videoTitle}}_{{$now.format('yyyy-MM-dd_HHmmss')}}.mp4",
+    "folderId": "{{$credentials.googleDriveFolderId}}",
+    "binaryPropertyName": "videoFile"
+  }
+}
+```
+
+```javascript
+// Code node: Organize outputs in Google Drive folder structure
+const folderPath = `AI_Videos/${$json.projectName}/${$now.format('yyyy-MM')}`;
+const fileName = `${$json.videoTitle}_${$json.requestId}.mp4`;
+
+return {
+  json: {
+    folderPath,
+    fileName,
+    metadata: {
+      generatedAt: $now.toISO(),
+      topic: $json.topic,
+      duration: $json.totalDuration
+    }
+  }
 };
 ```
 
