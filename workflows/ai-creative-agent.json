@@ -1,0 +1,552 @@
+{
+    "name": "AI Creative Agent - Video Repurposing",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "a1b2c3d4-0001-0001-0001-000000000001",
+            "name": "Start Prompt Generation",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                260,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Configure your project data here\nconst project = {\n  projectId: 'project_001',\n  projectName: 'Video Repurpose Project',\n  inputVideoUrl: '', // Add your video URL\n  characterImageUrl: '', // Add character reference image URL\n  productImageUrl: '', // Add product reference image URL\n  request: 'Repurpose this ad with the provided character wearing the products. Use golden color scheme. No text overlays.',\n  aspectRatio: '9:16',\n  sceneCount: 5\n};\n\nreturn { json: project };"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000002",
+            "name": "Set Project Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                480,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googlePalmApi",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [\n      {\n        \"text\": \"You are analyzing a video for repurposing. Pretend you analyzed a 30-second product ad. Break it into 5 scenes using the SEAL CAM framework. Output JSON: { music_description: string (describe style, tempo, mood), scenes: [{ scene_number: number, duration_seconds: number, subject: string, environment: string, action: string, lighting: string, camera: string, meta_tokens: string }] }\"\n      }\n    ]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.4,\n    \"maxOutputTokens\": 4096,\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+                "options": {}
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000003",
+            "name": "Gemini Analyze Video",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                700,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const geminiResponse = $input.first().json;\nconst projectData = $('Set Project Data').first().json;\n\nlet videoAnalysis;\ntry {\n  const responseText = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\n  videoAnalysis = JSON.parse(responseText);\n} catch (e) {\n  videoAnalysis = {\n    music_description: 'Upbeat electronic, 120 BPM, energetic',\n    scenes: [\n      { scene_number: 1, duration_seconds: 6, subject: 'Product hero shot', environment: 'Studio', action: 'Slow reveal', lighting: 'Soft key', camera: '85mm close-up', meta_tokens: '4K cinematic' }\n    ]\n  };\n}\n\nreturn {\n  json: {\n    ...projectData,\n    videoAnalysis,\n    musicDescription: videoAnalysis.music_description || '',\n    scenes: videoAnalysis.scenes || []\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000004",
+            "name": "Parse Video Analysis",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                920,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.openai.com/v1/chat/completions",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "openAiApi",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an AI Creative Director. Create image and video prompts for each scene. Output JSON: { music_prompt: string (for Suno - genre, tempo, mood, instruments, 30sec), scenes: [{ scene_number: number, image_prompt: string (150-200 words using SEAL CAM), video_prompt: string (max 400 chars for motion) }] }\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify('Video Analysis: ' + JSON.stringify($json.videoAnalysis) + '. Character Image: ' + $json.characterImageUrl + '. Product Image: ' + $json.productImageUrl + '. Creative Direction: ' + $json.request + '. Create ' + $json.sceneCount + ' scenes in ' + $json.aspectRatio + ' aspect ratio.') }}\n    }\n  ]\n}",
+                "options": {}
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000005",
+            "name": "OpenAI Generate Prompts",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1140,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const openaiResponse = $input.first().json;\nconst projectData = $('Parse Video Analysis').first().json;\n\nlet prompts;\ntry {\n  const content = openaiResponse.choices?.[0]?.message?.content || '{}';\n  prompts = JSON.parse(content);\n} catch (e) {\n  prompts = { music_prompt: '', scenes: [] };\n}\n\nreturn {\n  json: {\n    projectId: projectData.projectId,\n    projectName: projectData.projectName,\n    characterImageUrl: projectData.characterImageUrl,\n    productImageUrl: projectData.productImageUrl,\n    aspectRatio: projectData.aspectRatio,\n    musicPrompt: prompts.music_prompt || '',\n    scenes: prompts.scenes || []\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000006",
+            "name": "Parse Prompts",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1360,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "scenes",
+                "include": "allOtherFields"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000007",
+            "name": "Split Scenes",
+            "type": "n8n-nodes-base.splitOut",
+            "typeVersion": 1,
+            "position": [
+                1580,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const scene = $input.first().json;\n\nreturn {\n  json: {\n    sceneNumber: scene.scene_number,\n    imagePrompt: scene.image_prompt,\n    videoPrompt: scene.video_prompt,\n    projectId: scene.projectId,\n    characterImageUrl: scene.characterImageUrl,\n    productImageUrl: scene.productImageUrl,\n    aspectRatio: scene.aspectRatio,\n    musicPrompt: scene.musicPrompt\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000008",
+            "name": "Format Scene",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1800,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.wavespeed.ai/v1/images/generate",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"nano-banana-pro\",\n  \"prompt\": {{ JSON.stringify($json.imagePrompt) }},\n  \"aspect_ratio\": {{ JSON.stringify($json.aspectRatio) }},\n  \"num_outputs\": 1\n}",
+                "options": {
+                    "timeout": 120000
+                }
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000009",
+            "name": "Generate Image",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2020,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const imageResponse = $input.first().json;\nconst sceneData = $('Format Scene').first().json;\n\nconst imageUrl = imageResponse.output?.[0]?.url || imageResponse.images?.[0]?.url || '';\n\nreturn {\n  json: {\n    ...sceneData,\n    generatedImageUrl: imageUrl,\n    imageStatus: imageUrl ? 'success' : 'failed'\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000010",
+            "name": "Store Image URL",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2240,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.wavespeed.ai/v1/kling/2.6/generate",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.videoPrompt) }},\n  \"image_url\": {{ JSON.stringify($json.generatedImageUrl) }},\n  \"duration\": 5,\n  \"aspect_ratio\": {{ JSON.stringify($json.aspectRatio) }}\n}",
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000011",
+            "name": "Start Video Generation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2460,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const videoResponse = $input.first().json;\nconst sceneData = $('Store Image URL').first().json;\n\nconst taskId = videoResponse.task_id || videoResponse.id || '';\n\nreturn {\n  json: {\n    ...sceneData,\n    videoTaskId: taskId,\n    videoStatus: 'processing'\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000012",
+            "name": "Store Video Task",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2680,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "amount": 30,
+                "unit": "seconds"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000013",
+            "name": "Wait for Video",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                2900,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "=https://api.wavespeed.ai/v1/tasks/{{ $json.videoTaskId }}",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "options": {}
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000014",
+            "name": "Check Video Status",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                3120,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const statusResponse = $input.first().json;\nconst sceneData = $('Store Video Task').first().json;\n\nconst state = statusResponse.state || statusResponse.status || 'unknown';\nconst videoUrl = statusResponse.output_url || statusResponse.video_url || '';\n\nreturn {\n  json: {\n    ...sceneData,\n    videoState: state,\n    generatedVideoUrl: videoUrl,\n    isComplete: state === 'completed' || state === 'success'\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000015",
+            "name": "Parse Video Status",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                3340,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "aggregate": "aggregateAllItemData",
+                "destinationFieldName": "completedScenes",
+                "include": "allFields"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000016",
+            "name": "Collect All Scenes",
+            "type": "n8n-nodes-base.aggregate",
+            "typeVersion": 1,
+            "position": [
+                3560,
+                340
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "a1b2c3d4-0001-0001-0001-000000000017",
+            "name": "Start Music Generation",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                260,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Get music prompt from previous run or set manually\nconst musicPrompt = 'Upbeat electronic music, 120 BPM, energetic and modern, synth leads with punchy drums, 30 seconds, no vocals';\n\nreturn {\n  json: {\n    musicPrompt: musicPrompt\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000018",
+            "name": "Set Music Prompt",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                480,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.krea.ai/v1/suno/generate",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.musicPrompt) }},\n  \"duration\": 30,\n  \"instrumental\": true,\n  \"num_outputs\": 2\n}",
+                "options": {
+                    "timeout": 120000
+                }
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000019",
+            "name": "Generate Music Suno",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                700,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const musicResponse = $input.first().json;\n\nconst musicFiles = musicResponse.output || musicResponse.audio_files || [];\n\nreturn {\n  json: {\n    musicFile1: musicFiles[0]?.url || '',\n    musicFile2: musicFiles[1]?.url || '',\n    musicStatus: musicFiles.length > 0 ? 'success' : 'failed'\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000020",
+            "name": "Store Music Files",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                920,
+                600
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "a1b2c3d4-0001-0001-0001-000000000021",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                260,
+                860
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const error = $input.first().json;\n\nreturn {\n  json: {\n    workflow: error.workflow?.name || 'AI Creative Agent',\n    node: error.execution?.error?.node?.name || 'Unknown',\n    message: error.execution?.error?.message || 'Unknown error',\n    timestamp: new Date().toISOString()\n  }\n};"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000022",
+            "name": "Log Error",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                480,
+                860
+            ]
+        }
+    ],
+    "connections": {
+        "Start Prompt Generation": {
+            "main": [
+                [
+                    {
+                        "node": "Set Project Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Project Data": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini Analyze Video",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Analyze Video": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Video Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Video Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "OpenAI Generate Prompts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Generate Prompts": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Prompts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Prompts": {
+            "main": [
+                [
+                    {
+                        "node": "Split Scenes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Scenes": {
+            "main": [
+                [
+                    {
+                        "node": "Format Scene",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Scene": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Image": {
+            "main": [
+                [
+                    {
+                        "node": "Store Image URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Store Image URL": {
+            "main": [
+                [
+                    {
+                        "node": "Start Video Generation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Start Video Generation": {
+            "main": [
+                [
+                    {
+                        "node": "Store Video Task",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Store Video Task": {
+            "main": [
+                [
+                    {
+                        "node": "Wait for Video",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait for Video": {
+            "main": [
+                [
+                    {
+                        "node": "Check Video Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Video Status": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Video Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Video Status": {
+            "main": [
+                [
+                    {
+                        "node": "Collect All Scenes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Start Music Generation": {
+            "main": [
+                [
+                    {
+                        "node": "Set Music Prompt",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Music Prompt": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Music Suno",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Music Suno": {
+            "main": [
+                [
+                    {
+                        "node": "Store Music Files",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Log Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0
+}
